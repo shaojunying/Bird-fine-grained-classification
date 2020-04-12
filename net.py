@@ -2,12 +2,14 @@ from torch import nn
 from torchvision import models
 
 
-class MyAlexNet(nn.Module):
+class ClusterAlexNet(nn.Module):
     """
-    将AlexNet的第一个全连接层的输出作为MyAlexNet最终输出
+    用于聚类的AlexNet
+    将AlexNet的第一个全连接层的输出作为 ClusterAlexNet 最终输出
     """
+
     def __init__(self):
-        super(MyAlexNet, self).__init__()
+        super(ClusterAlexNet, self).__init__()
         model = models.alexnet(pretrained=True)
 
         # Dropout and Linear
