@@ -4,7 +4,7 @@ from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms
 from visdom import Visdom
 
-from cub2011 import Cub2011
+from dataset import Cub2011
 from net import ClusterAlexNet
 from utils import *
 
@@ -87,10 +87,11 @@ def show_result(use_lda=False):
         # indices = random.sample(data.tolist(), n_samples)
         indices = data.tolist()[-6:-1]
         for index in indices:
+            data = train_data[int(index)][0].expand([1, 3, 256, 256])
             if samples is None:
-                samples = train_data[int(index)][0].expand([1, 3, 256, 256])
+                samples = data
             else:
-                samples = torch.cat((samples, train_data[int(index)][0].expand([1, 3, 256, 256])), dim=0)
+                samples = torch.cat((samples, data), dim=0)
         vis.images(samples)
 
 
