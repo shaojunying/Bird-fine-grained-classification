@@ -102,10 +102,13 @@ class Cub2011Cluster(Dataset):
         self.data_iter = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False)
 
         # print(self.load_feature("features.csv"))
-        self.data = self.load_cluster_info(6)
+        if self.train:
+            self.data = self.load_cluster_info(6)
 
-        if cluster_id is not None:
-            self.data = self.data[self.data.cluster_id == cluster_id]
+            if cluster_id is not None:
+                self.data = self.data[self.data.cluster_id == cluster_id]
+        else:
+            self.data = self.dataset.data[self.dataset.data.is_training_img == 0]
 
     def load_feature(self, filename):
         """
