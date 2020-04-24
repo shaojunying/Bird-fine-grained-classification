@@ -9,6 +9,7 @@ from torchvision.datasets.folder import default_loader
 from torchvision.datasets.utils import download_url
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
+from config import *
 
 from net import ClusterAlexNet
 
@@ -39,9 +40,13 @@ class Cub2011(Dataset):
                                          sep=' ', names=['img_id', 'target'])
         train_test_split = pd.read_csv(os.path.join(self.root, 'CUB_200_2011', 'train_test_split.txt'),
                                        sep=' ', names=['img_id', 'is_training_img'])
+        boxes = pd.read_table(os.path.join(self.root, 'CUB_200_2011', 'bounding_boxes.txt'), sep=' ',
+                              names=['img_id', 'x', 'y', 'width', 'height'])
+        self.boxes = boxes.to_numpy()
 
         data = images.merge(image_class_labels, on='img_id')
         self.data = data.merge(train_test_split, on='img_id')
+        self.data = self.data.merge(boxes, on='img_id')
 
         if self.train:
             self.data = self.data[self.data.is_training_img == 1]
@@ -82,6 +87,8 @@ class Cub2011(Dataset):
         target = sample.target - 1  # Targets start at 1 by default, so shift to 0
         img = self.loader(path)
 
+        img = img.crop((sample.x, sample.y, sample.x + sample.width, sample.y + sample.height))
+
         if self.transform is not None:
             img = self.transform(img)
 
@@ -97,7 +104,8 @@ class Cub2011Cluster(Dataset):
         self.train = train
         self.transform = transform
         self.loader = loader
-        self.batch_size = 256
+        self.download = download
+        self.batch_size = 64
         self.dataset = Cub2011(root, train, transform, loader, download)
         self.data_iter = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False)
 
@@ -121,6 +129,13 @@ class Cub2011Cluster(Dataset):
             if torch.cuda.is_available():
                 net = net.cuda()
             done_nums = 0
+            self.dataset = Cub2011(self.root, self.train, transforms.Compose([
+                transforms.Resize((size, size)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+            ]), self.loader, self.download)
+            self.data_iter = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False)
             with open(os.path.join(self.root, filename), "w") as f:
                 print("Start to compute the features")
                 writer = csv.writer(f)
@@ -187,6 +202,8 @@ class Cub2011Cluster(Dataset):
         target = sample.target - 1  # Targets start at 1 by default, so shift to 0
         img = self.loader(path)
 
+        img = img.crop((sample.x, sample.y, sample.x + sample.width, sample.y + sample.height))
+
         if self.transform is not None:
             img = self.transform(img)
 
@@ -197,6 +214,5 @@ if __name__ == '__main__':
     transform = transforms.Compose([
         transforms.Resize((256, 256)), transforms.ToTensor()
     ])
-    dataset = Cub2011Cluster("dataset", cluster_id=1, transform=transform, download=True)
+    dataset = Cub2011Cluster(dataset_directory, cluster_id=1, transform=transform, download=True)
     print(1)
-

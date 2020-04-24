@@ -5,6 +5,8 @@ import torch
 import numpy as np
 import shutil
 
+from config import lr_decay
+
 
 def setup_seed(seed=0):
     torch.manual_seed(seed)
@@ -36,9 +38,6 @@ def load_checkpoint_1(directory, filename='checkpoint.pth'):
 
 def exist_checkpoint(directory, filename='checkpoint.pth'):
     return os.path.exists(os.path.join(directory, filename))
-
-
-lr_decay = 40
 
 
 def adjust_learning_rate(optimizer, epoch):

@@ -1,5 +1,6 @@
 from torch import nn
 from torchvision import models
+from config import *
 
 
 class ClusterAlexNet(nn.Module):
@@ -10,10 +11,8 @@ class ClusterAlexNet(nn.Module):
 
     def __init__(self):
         super(ClusterAlexNet, self).__init__()
-        model = models.alexnet(pretrained=True)
-
-        # Dropout and Linear
-        model.classifier = model.classifier[:2]
+        model = models.resnet18(pretrained=True)
+        model.fc = nn.Linear(in_features=512, out_features=n_components, bias=True)
         self.model = model
 
     def forward(self, x):
@@ -32,10 +31,11 @@ class ClassificationAlexNet(nn.Module):
         :param n: 分类的目标类别数
         """
         super(ClassificationAlexNet, self).__init__()
-        model = models.alexnet(pretrained=True)
-        model.classifier = model.classifier[:-1]
-        model.classifier.add_module(str(len(model.classifier)), nn.Linear(4096, n))
+        model = models.resnet18(pretrained=True)
+        # model.classifier = model.classifier[:-1]
+        # model.classifier.add_module(str(len(model.classifier)), nn.Linear(4096, n))
         self.model = model
+        self.model.fc = nn.Linear(in_features=512, out_features=n, bias=True)
 
     def forward(self, x):
         x = self.model(x)
