@@ -1,12 +1,9 @@
 import torch
-from torch import nn
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms
-import torch.nn.functional as F
 
-from config import *
 from dataset import Cub2011, Cub2011Cluster
-from net import ClassificationAlexNet
+from net import *
 # from utils import *
 from utils import setup_seed, load_checkpoint_1, save_checkpoint, adjust_learning_rate, exist_checkpoint
 
@@ -35,12 +32,12 @@ def main():
                              std=[0.229, 0.224, 0.225])
     ])
 
-    datasets = [Cub2011Cluster(root=dataset_directory, cluster_id=i, train=True, transform=train_transform)
-                for i in range(n_clusters)]
-    # datasets = [Cub2011(root=dataset_directory  train=True, transform=transform)
+    # datasets = [Cub2011Cluster(root=dataset_directory, cluster_id=i, train=True, transform=train_transform)
     #             for i in range(n_clusters)]
-    datasets_len = [len(dataset) for dataset in datasets]
-    data_loaders = [DataLoader(dataset, shuffle=True, batch_size=batch_size) for dataset in datasets]
+    # # datasets = [Cub2011(root=dataset_directory  train=True, transform=transform)
+    # #             for i in range(n_clusters)]
+    # datasets_len = [len(dataset) for dataset in datasets]
+    # data_loaders = [DataLoader(dataset, shuffle=True, batch_size=batch_size) for dataset in datasets]
 
     train_set = Cub2011(root=dataset_directory, train=True, transform=train_transform)
     train_loader = DataLoader(train_set, shuffle=True, batch_size=batch_size)
@@ -51,8 +48,10 @@ def main():
     val_set = Cub2011(root=dataset_directory, train=True, transform=test_transform)
     val_loader = DataLoader(val_set, shuffle=True, batch_size=batch_size)
 
+    cluster_net = ClusterAlexNet()
+
     nets = [ClassificationAlexNet(n_labels) for i in range(n_clusters)]
-    nets = [nn.DataParallel(net) for net in nets]
+    # nets = [nn.DataParallel(net) for net in nets]
     if torch.cuda.is_available():
         nets = [net.cuda() for net in nets]
     criterion = nn.CrossEntropyLoss()
@@ -88,22 +87,22 @@ def main():
         for batch_id, (x, y) in enumerate(train_loader):
             if torch.cuda.is_available():
                 x, y = x.cuda(), y.cuda()
-            c_s = []
-            z_s = []
-            for net in nets:
-                z = net(x)
-                z_s.append(z)
-                c_s.append(z.max(dim=1).values)
+            # c_s = []
+            # z_s = []
+            # for net in nets:
+            #     z = net(x)
+            #     z_s.append(z)
+                # c_s.append(z.max(dim=1).values)
             # (n,6)
-            c = torch.stack(c_s, dim=1)
+            # c = torch.stack(c_s, dim=1)
             # (n,6,1)
-            a = F.softmax(c, dim=1).unsqueeze(-1)
+            # a = F.softmax(c, dim=1).unsqueeze(-1)
 
-            z1 = torch.stack(z_s, dim=1)
+            # z1 = torch.stack(z_s, dim=1)
             # (n, 200)
-            z = (a * z1).sum(1)
-            # (n)
-            y_ = z.argmax(1)
+            # z = (a * z1).sum(1)
+            # z = z1.sum(1)
+            z = nets[0](x)
             loss = criterion(z, y)
 
             optimizer.zero_grad()
@@ -112,6 +111,8 @@ def main():
 
             train_loss += loss.item()
 
+            # (n)
+            y_ = z.argmax(1)
             correct += (y_ == y).sum().cpu().item()
             total += y.shape[0]
             print("Epoch:{},train batch:{}/{}, loss:{} ,acc:{}".format(epoch, batch_id, len(train_loader),
@@ -124,19 +125,20 @@ def main():
             for batch_id, (x, y) in enumerate(val_loader):
                 if torch.cuda.is_available():
                     x, y = x.cuda(), y.cuda()
-                c_s = []
+                # c_s = []
                 z_s = []
                 for net in nets:
                     z = net(x)
                     z_s.append(z)
-                    c_s.append(z.max(dim=1).values)
+                    # c_s.append(z.max(dim=1).values)
                 # (n,6)
-                c = torch.stack(c_s, dim=1)
+                # c = torch.stack(c_s, dim=1)
                 # (n,6,1)
-                a = F.softmax(c, dim=1).unsqueeze(-1)
+                # a = F.softmax(c, dim=1).unsqueeze(-1)
 
                 z1 = torch.stack(z_s, dim=1)
-                z = (a * z1).sum(1)
+                # z = (a * z1).sum(1)
+                z = z1.sum(1)
                 y_ = z.argmax(1)
                 correct += (y_ == y).sum().cpu().item()
                 total += y.shape[0]
@@ -152,19 +154,21 @@ def main():
             for batch_id, (x, y) in enumerate(test_loader):
                 if torch.cuda.is_available():
                     x, y = x.cuda(), y.cuda()
-                c_s = []
+                # c_s = []
                 z_s = []
-                for net in nets:
-                    z = net(x)
-                    z_s.append(z)
-                    c_s.append(z.max(dim=1).values)
+                # for net in nets:
+                #     z = net(x)
+                #     z_s.append(z)
+                    # c_s.append(z.max(dim=1).values)
                 # (n,6)
-                c = torch.stack(c_s, dim=1)
+                # c = torch.stack(c_s, dim=1)
                 # (n,6,1)
-                a = F.softmax(c, dim=1).unsqueeze(-1)
+                # a = F.softmax(c, dim=1).unsqueeze(-1)
 
-                z1 = torch.stack(z_s, dim=1)
-                z = (a * z1).sum(1)
+                # z1 = torch.stack(z_s, dim=1)
+                # z = (a * z1).sum(1)
+                # z = z1.sum(1)
+                z = nets[0](x)
                 y_ = z.argmax(1)
                 correct += (y_ == y).sum().cpu().item()
                 total += y.shape[0]
@@ -183,20 +187,34 @@ def main():
 
         print("Epoch:{},test acc:{}(best:{})".format(epoch, acc, best_test_acc))
 
+    # def test(epoch):
+    #     with open('lda.pickle', 'rb') as f:
+    #         lda = pickle.load(f)
+    #     with open('kmean.pickle', 'rb') as f:
+    #         kmean = pickle.load(f)
+    #     for batch_id, (x, y) in enumerate(test_loader):
+    #         x, y = x.cuda(), y.cuda()
+    #         features = cluster_net(x)
+    #         features = lda.transform(features)
+    #         cluster_ids = kmean.fit_predict(features)
+    #         print(cluster_ids)
+
+
+
     start = 0
     has_joint_checkpoint = exist_checkpoint(train_jointly_directory)
-    if not has_joint_checkpoint:
-        print("Start train dependently")
-        # 这里需要专家网络首先单独训练30轮
-        state = load_checkpoint_1(train_dependently_directory)
-        if state is not None:
-            start = state['epoch'] + 1
-            for net, state_dict in zip(nets, state['state_dict']):
-                net.load_state_dict(state_dict)
-        for epoch in range(start, 30):
-            train_with_clustering(epoch)
-            # val_with_clustering(epoch)
-            test_with_clustering(epoch, train_dependently_directory)
+    # if not has_joint_checkpoint:
+    #     print("Start train dependently")
+    #     # 这里需要专家网络首先单独训练30轮
+    #     state = load_checkpoint_1(train_dependently_directory)
+    #     if state is not None:
+    #         start = state['epoch'] + 1
+    #         for net, state_dict in zip(nets, state['state_dict']):
+    #             net.load_state_dict(state_dict)
+    #     for epoch in range(start, 30):
+    #         train_with_clustering(epoch)
+    #         # val_with_clustering(epoch)
+    #         test_with_clustering(epoch, train_dependently_directory)
     # 需要专家网络放在一起进行训练
     print("Start train jointly")
     if has_joint_checkpoint:

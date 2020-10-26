@@ -1,16 +1,17 @@
 import csv
 import os
+
+import numpy as np
 import pandas as pd
 import torch
 from sklearn.cluster import KMeans
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.datasets.folder import default_loader
 from torchvision.datasets.utils import download_url
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-from config import *
 
+from config import *
 from net import ClusterAlexNet
 
 
@@ -179,6 +180,10 @@ class Cub2011Cluster(Dataset):
             result = KMeans(n_clusters=n_clusters, random_state=0).fit(features)
             # 将结果存入csv
             # result.labels_ => the index of cluster
+            # with open('kmean.pickle', 'wb') as f:
+            #     pickle.dump(result, f)
+            # with open('lda.pickle', 'wb') as f:
+            #     pickle.dump(lda, f)
             print(result)
             cluster_ids = result.labels_.reshape(-1, 1).tolist()
             id = [i for i in range(1, len(cluster_ids) + 1)]
